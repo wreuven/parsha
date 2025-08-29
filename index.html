@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>פרשת השבוע - אולפנת נוגה</title>
+  <meta name="description" content="צפו בסרטון, ענו על חידון קצר, והצטרפו לרשימת הזוכים!" />
+  <link rel="preconnect" href="https://www.youtube.com">
+  <link rel="preconnect" href="https://i.ytimg.com">
+  <link rel="stylesheet" href="./assets/styles.css" />
+</head>
+<body>
+  <header class="container">
+    <h1>פרשת השבוע - אולפנת נוגה</h1>
+    <p class="subtitle">צפו בוידאו עד הסוף, ענו על 2 שאלות, והצטרפו למובילים!</p>
+  </header>
+
+  <main class="container">
+    <section class="card">
+      <h2>הסרטון השבועי</h2>
+      <div id="playerContainer" class="player-container">
+        <div id="player"></div>
+      </div>
+      <p class="note">החידון ייפתח אוטומטית לאחר צפייה מלאה בסרטון.</p>
+    </section>
+
+    <section id="quizSection" class="card hidden" aria-hidden="true">
+      <h2>חידון קצר - 2 שאלות</h2>
+
+      <form id="quizForm">
+        <div id="questions"></div>
+
+        <div class="field">
+          <label for="studentName">שם:</label>
+          <input id="studentName" name="studentName" type="text" required placeholder="שם פרטי ומשפחה" />
+        </div>
+
+        <button type="submit" class="primary">שליחה</button>
+        <p id="quizMessage" class="message" role="status" aria-live="polite"></p>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>טבלאות הובלה</h2>
+      <div class="leaderboards">
+        <div>
+          <h3>מובילים כללי</h3>
+          <ol id="leadersAll"></ol>
+        </div>
+        <div>
+          <h3>מובילים החודש</h3>
+          <ol id="leadersMonth"></ol>
+        </div>
+        <div>
+          <h3>זוכי השבוע</h3>
+          <ol id="leadersWeek"></ol>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="container center">
+    <small>© <span id="year"></span> אולפנת נוגה • יוזמת פרשת השבוע</small>
+  </footer>
+
+  <script src="./assets/config.js"></script>
+  <script src="./assets/backend.js"></script>
+  <script src="./assets/app.js"></script>
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>
