@@ -79,6 +79,21 @@ create policy "Upsert settings" on parsha_settings for insert with check ( true 
 create policy "Update settings" on parsha_settings for update using ( true ) with check ( true );
 ```
 
+```sql
+-- Custom questions (per week)
+create table if not exists parsha_custom_questions (
+  id uuid primary key default gen_random_uuid(),
+  week_key text not null,
+  text text not null,
+  options jsonb not null,
+  correct_index int not null,
+  created_at timestamp with time zone default now()
+);
+alter table parsha_custom_questions enable row level security;
+create policy "Public read custom questions" on parsha_custom_questions for select using ( true );
+create policy "Insert custom questions" on parsha_custom_questions for insert with check ( true );
+```
+
 ### הפעלה מהירה
 1. צרו פרויקט ב-Supabase (חינמי).
 2. בהגדרות קחו Project URL ו-Anon Key.

@@ -68,12 +68,28 @@ function setActiveQuestionIds(ids){
 }
 
 function defaultActiveIds(){
-  const { questions } = window.PARSHA_CONFIG;
-  return [questions[0]?.id, questions[1]?.id].filter(Boolean);
+  const qs = window.PARSHA_CONFIG.questions;
+  return [qs[0]?.id, qs[1]?.id].filter(Boolean);
 }
 
 function getQuestionById(id){
   return window.PARSHA_CONFIG.questions.find(q=> q.id===id);
+}
+
+async function getAllQuestions(){
+  const builtins = window.PARSHA_CONFIG.questions.map(q=> ({...q, source:'builtin'}));
+  const wk = window.PARSHA_CONFIG.weekKey;
+  let customs = [];
+  if(isRemoteEnabled() && window.PARSHA_REMOTE.remoteFetchCustomQuestions){
+    try{
+      const rows = await window.PARSHA_REMOTE.remoteFetchCustomQuestions(wk);
+      customs = (rows||[]).map((r,i)=> ({ id: `c${i}_${(r.id||'').slice(0,8)}`, text: r.text, options: r.options, correctIndex: r.correct_index, source:'custom'}));
+    }catch{}
+  } else {
+    const local = getJSON(`${ACTIVE_KEY_LOCAL}${wk}:custom`, []);
+    customs = local.map((q,i)=> ({ id: `lc${i}`, ...q, source:'custom' }));
+  }
+  return [...builtins, ...customs];
 }
 
 // Quiz rendering
@@ -81,7 +97,9 @@ async function renderQuestions(){
   const wrap = document.getElementById('questions');
   wrap.innerHTML = '';
   const activeIds = await getActiveQuestionIds();
-  const active = activeIds.map(getQuestionById).filter(Boolean);
+  const bank = await getAllQuestions();
+  const byId = new Map(bank.map(q=> [q.id, q]));
+  const active = activeIds.map(id=> byId.get(id)).filter(Boolean);
   active.forEach((q, qi)=>{
     const field = document.createElement('fieldset');
     field.className = 'field';
@@ -435,7 +453,7 @@ async function buildSetupPanel(){
   });
 
   const activeIds = await getActiveQuestionIds();
-  const qs = window.PARSHA_CONFIG.questions;
+  const qs = await getAllQuestions();
   div.innerHTML = '';
 
   const list = document.createElement('div');
@@ -487,6 +505,61 @@ async function buildSetupPanel(){
     list.appendChild(wrap);
   });
   div.appendChild(list);
+
+  // Custom question adder
+  const customWrap = document.createElement('div');
+  customWrap.className = 'field';
+  const customTitle = document.createElement('h3');
+  customTitle.textContent = 'הוספת שאלות מותאמות (עד 2)';
+  customWrap.appendChild(customTitle);
+  const helper = document.createElement('p');
+  helper.className = 'note';
+  helper.textContent = 'מלאו טקסט שאלה, 4 תשובות, וסמנו את הנכונה. שמרו כל שאלה בנפרד.';
+  customWrap.appendChild(helper);
+
+  function makeCustomForm(idx){
+    const f = document.createElement('div');
+    f.style.borderTop = '1px dashed rgba(255,255,255,.2)';
+    f.style.marginTop = '.5rem';
+    f.style.paddingTop = '.5rem';
+    const qIn = document.createElement('input'); qIn.type = 'text'; qIn.placeholder = `שאלה ${idx}`; qIn.style.marginBottom = '.4rem';
+    f.appendChild(qIn);
+    const optInputs = [];
+    const radios = [];
+    for(let i=0;i<4;i++){
+      const row = document.createElement('div'); row.style.display='flex'; row.style.gap='.5rem'; row.style.alignItems='center'; row.style.margin='.25rem 0';
+      const r = document.createElement('input'); r.type='radio'; r.name=`customCorrect${idx}`; r.value=String(i);
+      const t = document.createElement('input'); t.type='text'; t.placeholder = `תשובה ${i+1}`; t.style.flex='1';
+      row.appendChild(r); row.appendChild(t);
+      f.appendChild(row);
+      optInputs.push(t); radios.push(r);
+    }
+    const saveOne = document.createElement('button'); saveOne.className='secondary'; saveOne.textContent = 'שמור שאלה זו'; saveOne.style.marginTop='.4rem';
+    saveOne.addEventListener('click', async ()=>{
+      const text = qIn.value.trim();
+      const options = optInputs.map(i=> i.value.trim());
+      const sel = radios.find(r=> r.checked);
+      if(!text || options.some(o=>!o) || !sel){ alert('מלאו שאלה, 4 תשובות, וסמנו תשובה נכונה.'); return; }
+      const q = { text, options, correctIndex: Number(sel.value) };
+      const wk = window.PARSHA_CONFIG.weekKey;
+      if(isRemoteEnabled() && window.PARSHA_REMOTE.remoteAddCustomQuestion){
+        await window.PARSHA_REMOTE.remoteAddCustomQuestion(wk, q).catch(()=>{});
+      } else {
+        // local store in settings key as array of custom questions
+        const key = `${ACTIVE_KEY_LOCAL}${wk}:custom`;
+        const arr = getJSON(key, []);
+        arr.push(q);
+        setJSON(key, arr);
+      }
+      alert('השאלה נוספה.');
+    });
+    f.appendChild(saveOne);
+    return f;
+  }
+
+  customWrap.appendChild(makeCustomForm(1));
+  customWrap.appendChild(makeCustomForm(2));
+  div.appendChild(customWrap);
 
   const actions = document.createElement('div');
   actions.style.display = 'flex';

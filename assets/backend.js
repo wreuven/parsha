@@ -7,6 +7,8 @@
 (function(){
   const hasConfig = !!window.PARSHA_BACKEND?.supabaseUrl && !!window.PARSHA_BACKEND?.supabaseAnonKey;
   let supabase = null;
+  let settingsAvailable = true; // back off if settings table not found
+  let customAvailable = true;   // back off if custom questions table not found
 
   async function ensureClient(){
     if(!hasConfig) return null;
@@ -49,14 +51,18 @@
   // Optional: active questions storage
   async function getActiveQuestions(weekKey){
     const client = await ensureClient();
-    if(!client) return null;
+    if(!client || !settingsAvailable) return null;
     const prefix = window.PARSHA_BACKEND.tablePrefix || 'parsha';
-    const { data, error } = await client
-      .from(`${prefix}_settings`)
-      .select('value')
-      .eq('key', `active:${weekKey}`)
-      .maybeSingle();
-    if(error) return null;
+    let data, error;
+    try{
+      const res = await client
+        .from(`${prefix}_settings`)
+        .select('value')
+        .eq('key', `active:${weekKey}`)
+        .maybeSingle();
+      data = res.data; error = res.error;
+    }catch(e){ error = e; }
+    if(error){ settingsAvailable = false; return null; }
     try{
       const v = data?.value && JSON.parse(data.value);
       if(Array.isArray(v) && v.length===2) return v;
@@ -66,13 +72,58 @@
 
   async function setActiveQuestions(weekKey, ids){
     const client = await ensureClient();
-    if(!client) return;
+    if(!client || !settingsAvailable) return;
     const prefix = window.PARSHA_BACKEND.tablePrefix || 'parsha';
     const key = `active:${weekKey}`;
     const val = JSON.stringify(ids);
     // upsert
-    await client.from(`${prefix}_settings`).upsert({ key, value: val }, { onConflict: 'key' });
+    try{
+      await client.from(`${prefix}_settings`).upsert({ key, value: val }, { onConflict: 'key' });
+    }catch{
+      settingsAvailable = false;
+    }
   }
 
-  window.PARSHA_REMOTE = { remoteAddWinner, remoteFetchAll, hasConfig, getActiveQuestions, setActiveQuestions };
+  // Custom questions (per week)
+  async function remoteFetchCustomQuestions(weekKey){
+    const client = await ensureClient();
+    if(!client || !customAvailable) return [];
+    const prefix = window.PARSHA_BACKEND.tablePrefix || 'parsha';
+    try{
+      const { data, error } = await client
+        .from(`${prefix}_custom_questions`)
+        .select('id, week_key, text, options, correct_index, created_at')
+        .eq('week_key', weekKey)
+        .order('created_at', { ascending: true });
+      if(error){ customAvailable = false; return []; }
+      return data || [];
+    }catch{
+      customAvailable = false; return [];
+    }
+  }
+
+  async function remoteAddCustomQuestion(weekKey, q){
+    const client = await ensureClient();
+    if(!client || !customAvailable) return null;
+    const prefix = window.PARSHA_BACKEND.tablePrefix || 'parsha';
+    try{
+      const payload = {
+        week_key: weekKey,
+        text: q.text,
+        options: q.options,
+        correct_index: q.correctIndex
+      };
+      const { data, error } = await client
+        .from(`${prefix}_custom_questions`)
+        .insert(payload)
+        .select('id')
+        .single();
+      if(error){ customAvailable = false; return null; }
+      return data?.id || null;
+    }catch{
+      customAvailable = false; return null;
+    }
+  }
+
+  window.PARSHA_REMOTE = { remoteAddWinner, remoteFetchAll, hasConfig, getActiveQuestions, setActiveQuestions, remoteFetchCustomQuestions, remoteAddCustomQuestion };
 })();
