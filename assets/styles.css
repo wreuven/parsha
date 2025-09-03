@@ -5,9 +5,14 @@ html,body{margin:0;padding:0;background:linear-gradient(180deg,#0b1022,#0f172a 4
 header h1{margin:.5rem 0 0;font-size:clamp(1.6rem,3vw,2.2rem)}
 .subtitle{color:var(--muted);margin:.25rem 0 1rem}
 .card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:1rem;margin:1rem 0;backdrop-filter:blur(6px);box-shadow:0 10px 30px rgba(0,0,0,.25)}
-.player-container{position:relative;aspect-ratio:16/9;width:100%;overflow:hidden;border-radius:12px;background:#0b1022;border:1px solid rgba(255,255,255,.08)}
+.player-container{position:relative;aspect-ratio:16/9;width:100%;min-height:180px;overflow:hidden;border-radius:12px;background:#0b1022;border:1px solid rgba(255,255,255,.08)}
 .player-container #player{position:absolute;inset:0;width:100%;height:100%}
-.player-container iframe{position:absolute;inset:0;width:100%;height:100%}
+.player-container iframe{position:absolute;inset:0;width:100%;height:100%;display:block}
+
+/* Fallback for browsers without aspect-ratio support */
+@supports not (aspect-ratio: 1 / 1) {
+	.player-container{height:0;padding-bottom:56.25%}
+}
 .note{color:var(--muted);font-size:.95rem}
 .hidden{display:none}
 .field{margin:.75rem 0}

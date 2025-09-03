@@ -216,12 +216,8 @@ let timeGuard = {
 };
 function onYouTubeIframeAPIReady(){
   const { videoId } = window.PARSHA_CONFIG;
-  const container = document.getElementById('playerContainer') || document.getElementById('player');
-  const rect = container?.getBoundingClientRect();
-  const height = rect ? Math.max(180, Math.round(rect.width * 9 / 16)) : '100%';
   ytPlayer = new YT.Player('player', {
     width: '100%',
-    height,
     videoId,
     playerVars: {
       playsinline: 1,
@@ -320,19 +316,7 @@ function setupForm(){
 })();
 
 // Keep player sized on resize
-window.addEventListener('resize', ()=>{
-  try{
-    if(ytPlayer && ytPlayer.getIframe){
-      const iframe = ytPlayer.getIframe();
-      const pc = document.getElementById('playerContainer');
-      if(iframe && pc){
-        const w = pc.clientWidth;
-        iframe.style.width = '100%';
-        iframe.style.height = `${Math.max(180, Math.round(w * 9 / 16))}px`;
-      }
-    }
-  }catch{}
-});
+// CSS handles responsive sizing; no JS resize needed
 
 // Anti-scrubbing helpers
 function startTimeGuard(){
