@@ -86,6 +86,46 @@ function evaluateAnswers(form){
   return correct === questions.length;
 }
 
+// Cookie helpers
+function setCookie(name, value, days=365){
+  const d = new Date(); d.setTime(d.getTime() + (days*24*60*60*1000));
+  document.cookie = `${name}=${encodeURIComponent(value)};expires=${d.toUTCString()};path=/`;
+}
+function getCookie(name){
+  const n = `${name}=`;
+  const ca = document.cookie.split(';');
+  for(let c of ca){
+    while(c.charAt(0)===' ') c = c.substring(1);
+    if(c.indexOf(n)===0) return decodeURIComponent(c.substring(n.length));
+  }
+  return '';
+}
+const COOKIE_USER = `${NS}.username`;
+
+function showCurrentUser(){
+  const chip = document.getElementById('currentUser');
+  const name = getCookie(COOKIE_USER);
+  chip.textContent = name ? `שם שמור: ${name}` : 'שם לא שמור';
+}
+
+// Name confirmation modal
+function openNameConfirm(name, onConfirm){
+  const modal = document.getElementById('nameConfirmModal');
+  document.getElementById('nameConfirmValue').textContent = name;
+  modal.classList.remove('hidden');
+  const confirmBtn = document.getElementById('confirmNameBtn');
+  const cancelBtn = document.getElementById('cancelNameBtn');
+  const close = ()=> modal.classList.add('hidden');
+  const ok = ()=>{ close(); onConfirm?.(); cleanup(); };
+  const ko = ()=>{ close(); cleanup(); };
+  function cleanup(){
+    confirmBtn.removeEventListener('click', ok);
+    cancelBtn.removeEventListener('click', ko);
+  }
+  confirmBtn.addEventListener('click', ok);
+  cancelBtn.addEventListener('click', ko);
+}
+
 // Leaderboards
 function addWinner(name){
   const weekKey = window.PARSHA_CONFIG.weekKey;
@@ -169,6 +209,11 @@ function fillList(id, items){
 
 // YouTube Integration
 let ytPlayer;
+let timeGuard = {
+  intervalId: null,
+  lastTime: 0,
+  maxTime: 0
+};
 function onYouTubeIframeAPIReady(){
   const { videoId } = window.PARSHA_CONFIG;
   ytPlayer = new YT.Player('player', {
@@ -177,14 +222,26 @@ function onYouTubeIframeAPIReady(){
     playerVars: {
       playsinline: 1,
       rel: 0,
-      modestbranding: 1
+      modestbranding: 1,
+      controls: 0,       // hide controls (no seek bar)
+      disablekb: 1       // disable keyboard controls
     },
     events: {
       onReady: () => {},
       onStateChange: (e) => {
         // 0 = ended
         if(e.data === YT.PlayerState.ENDED){
+          stopTimeGuard();
           unlockQuiz();
+          return;
+        }
+        if(e.data === YT.PlayerState.PLAYING){
+          startTimeGuard();
+          return;
+        }
+        if(e.data === YT.PlayerState.PAUSED || e.data === YT.PlayerState.BUFFERING){
+          // keep guard running but update lastTime snapshot
+          updateTimeGuardOnce();
         }
       }
     }
@@ -208,9 +265,12 @@ function unlockQuiz(){
 function setupForm(){
   renderQuestions();
   const form = document.getElementById('quizForm');
+  // Prefill name from cookie if present
+  const savedName = getCookie(COOKIE_USER);
+  if(savedName) form.studentName.value = savedName;
   form.addEventListener('submit', (ev)=>{
     ev.preventDefault();
-    const name = form.studentName.value.trim();
+    let name = form.studentName.value.trim();
     if(!name){ toast('נא להזין שם.'); return; }
 
     if(!evaluateAnswers(form)){
@@ -218,11 +278,27 @@ function setupForm(){
       return;
     }
 
-    // success
-    addWinner(name);
-    renderLeaderboards();
-    toast('כל הכבוד! שמך נוסף לרשימת הזוכים של השבוע.');
-    form.reset();
+    const proceed = ()=>{
+      // persist name if not already saved
+      if(!getCookie(COOKIE_USER)){
+        setCookie(COOKIE_USER, name);
+        showCurrentUser();
+      }
+      // success
+      addWinner(name);
+      renderLeaderboards();
+      toast('כל הכבוד! שמך נוסף לרשימת הזוכים של השבוע.');
+      // Keep name in field for convenience
+      form.reset();
+      form.studentName.value = getCookie(COOKIE_USER) || '';
+    };
+
+    // If cookie not set (first time), confirm and then save
+    if(!getCookie(COOKIE_USER)){
+      openNameConfirm(name, proceed);
+    } else {
+      proceed();
+    }
   });
 }
 
@@ -236,4 +312,43 @@ function setupForm(){
   loadYouTubeAPI();
   setupForm();
   renderLeaderboards();
+  showCurrentUser();
 })();
+
+// Anti-scrubbing helpers
+function startTimeGuard(){
+  if(!ytPlayer) return;
+  if(timeGuard.intervalId) return; // already running
+  // Initialize from current time
+  const t = safeTime();
+  timeGuard.lastTime = t;
+  timeGuard.maxTime = Math.max(timeGuard.maxTime, t);
+  timeGuard.intervalId = setInterval(()=>{
+    const now = safeTime();
+    // forward jump beyond allowed threshold? snap back
+    const allowedLead = 2; // seconds user can jump ahead (tolerance for buffering)
+    if(now > timeGuard.maxTime + allowedLead){
+      ytPlayer.seekTo(timeGuard.maxTime, true);
+      return;
+    }
+    timeGuard.maxTime = Math.max(timeGuard.maxTime, now);
+    timeGuard.lastTime = now;
+  }, 500);
+}
+
+function stopTimeGuard(){
+  if(timeGuard.intervalId){
+    clearInterval(timeGuard.intervalId);
+    timeGuard.intervalId = null;
+  }
+}
+
+function updateTimeGuardOnce(){
+  const t = safeTime();
+  timeGuard.lastTime = t;
+  timeGuard.maxTime = Math.max(timeGuard.maxTime, t);
+}
+
+function safeTime(){
+  try { return ytPlayer?.getCurrentTime() ?? 0; } catch { return 0; }
+}

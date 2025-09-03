@@ -19,3 +19,14 @@ input[type=text]{width:100%;padding:.6rem .8rem;border-radius:10px;border:1px so
 @media (max-width:760px){.leaderboards{grid-template-columns:1fr}}
 ol{margin:0;padding-inline-start:1.2rem}
 ol li{margin:.25rem 0}
+
+/* current user chip */
+.user-row{display:flex;justify-content:flex-start;margin-top:.5rem}
+.user-chip{display:inline-flex;align-items:center;gap:.4rem;background:rgba(56,189,248,.15);border:1px solid rgba(56,189,248,.35);padding:.3rem .6rem;border-radius:999px;color:var(--text);font-size:.9rem}
+
+/* modal */
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:50}
+.modal.hidden{display:none}
+.modal-card{width:min(92vw,420px);background:rgba(17,24,39,.98);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:1rem;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+.modal-actions{display:flex;gap:.5rem;justify-content:flex-end;margin-top:.75rem}
+.secondary{background:transparent;color:var(--text);border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:.6rem 1rem;cursor:pointer}

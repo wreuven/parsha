@@ -13,6 +13,9 @@
   <header class="container">
     <h1>פרשת השבוע - אולפנת נוגה</h1>
     <p class="subtitle">צפו בוידאו עד הסוף, ענו על 2 שאלות, והצטרפו למובילים!</p>
+    <div class="user-row">
+      <span id="currentUser" class="user-chip" aria-live="polite"></span>
+    </div>
   </header>
 
   <main class="container">
@@ -62,6 +65,18 @@
   <footer class="container center">
     <small>© <span id="year"></span> אולפנת נוגה • יוזמת פרשת השבוע</small>
   </footer>
+
+  <!-- Name confirm modal -->
+  <div id="nameConfirmModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="nameConfirmTitle">
+    <div class="modal-card">
+      <h3 id="nameConfirmTitle">אישור שם</h3>
+      <p id="nameConfirmText">האם לאשר את שמך: <strong id="nameConfirmValue"></strong>?</p>
+      <div class="modal-actions">
+        <button id="confirmNameBtn" class="primary">אישור</button>
+        <button id="cancelNameBtn" class="secondary">ביטול</button>
+      </div>
+    </div>
+  </div>
 
   <script src="./assets/config.js"></script>
   <script src="./assets/backend.config.js"></script>
