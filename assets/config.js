@@ -3,35 +3,35 @@
 window.PARSHA_CONFIG = {
   // A stable key for this week's parsha (used for week winners list)
   // Tip: using a date helps keep it unique.
-  weekKey: '2025-08-29-shoftim',
+  weekKey: '2025-09-05-ki-teitzei',
   // Human-friendly title shown in UI (optional)
-  parshaTitle: 'פרשת שופטים',
+  parshaTitle: 'פרשת כי תצא',
   // YouTube video ID for the weekly clip (must be embeddable; placeholder for now)
   // Replace with the exact video ID you want to use this week.
-  videoId: 'ylOlVTXfEI0',
-  // Two quiz questions for Parashat Shoftim.
+  videoId: 'k629oThnEZ4',
+  // Two quiz questions for Parashat Ki Teitzei.
   questions: [
     {
       id: 'q1',
-      text: 'כמה עדים נדרשים כדי להעמיד אדם בדין (לדיני נפשות ועונשים חמורים)?',
+      text: 'איזו מצווה עוסקת ביחס לקן ציפור בפרשה?',
       options: [
-        'עד אחד',
-        'שניים או שלושה עדים',
-        'שלושה עדים בלבד',
-        'עשרה עדים'
+        'לקחת את הביצים והאם יחד',
+        'לשלח את האם לפני לקיחת הבנים',
+        'לא להתקרב לקן כלל',
+        'להביא את הקן הביתה ולהשגיח עליו'
       ],
       correctIndex: 1
     },
     {
       id: 'q2',
-      text: 'מה מן הבאים אסור למלך להרבות לפי הפרשה?',
+      text: 'מה מצווה התורה לעשות ביחס לעמלק בסוף הפרשה?',
       options: [
-        'סוסים',
-        'נשים',
-        'כסף וזהב',
-        'כל התשובות נכונות'
+        'לקרוא לו לשלום ולשכוח מה שעשה',
+        'לאהוב אותו כי הוא שכנו',
+        'לזכור את אשר עשה לך עמלק ולמחות את זכרו',
+        'לא להתעסק בנושא כלל'
       ],
-      correctIndex: 3
+      correctIndex: 2
     }
   ]
 };
