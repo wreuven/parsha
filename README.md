@@ -65,6 +65,18 @@ create policy "Public read week winners" on parsha_week_winners
   for select using ( true );
 create policy "Insert week winners" on parsha_week_winners
   for insert with check ( true );
+
+-- Settings key/value (for active questions selection, etc.)
+create table if not exists parsha_settings (
+  key text primary key,
+  value text not null,
+  created_at timestamp with time zone default now(),
+  updated_at timestamp with time zone default now()
+);
+alter table parsha_settings enable row level security;
+create policy "Public read settings" on parsha_settings for select using ( true );
+create policy "Upsert settings" on parsha_settings for insert with check ( true );
+create policy "Update settings" on parsha_settings for update using ( true ) with check ( true );
 ```
 
 ### הפעלה מהירה

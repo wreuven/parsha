@@ -46,5 +46,33 @@
   return { all, week: [...new Set(week.map(x=>x.name))] };
   }
 
-  window.PARSHA_REMOTE = { remoteAddWinner, remoteFetchAll, hasConfig };
+  // Optional: active questions storage
+  async function getActiveQuestions(weekKey){
+    const client = await ensureClient();
+    if(!client) return null;
+    const prefix = window.PARSHA_BACKEND.tablePrefix || 'parsha';
+    const { data, error } = await client
+      .from(`${prefix}_settings`)
+      .select('value')
+      .eq('key', `active:${weekKey}`)
+      .maybeSingle();
+    if(error) return null;
+    try{
+      const v = data?.value && JSON.parse(data.value);
+      if(Array.isArray(v) && v.length===2) return v;
+    }catch{}
+    return null;
+  }
+
+  async function setActiveQuestions(weekKey, ids){
+    const client = await ensureClient();
+    if(!client) return;
+    const prefix = window.PARSHA_BACKEND.tablePrefix || 'parsha';
+    const key = `active:${weekKey}`;
+    const val = JSON.stringify(ids);
+    // upsert
+    await client.from(`${prefix}_settings`).upsert({ key, value: val }, { onConflict: 'key' });
+  }
+
+  window.PARSHA_REMOTE = { remoteAddWinner, remoteFetchAll, hasConfig, getActiveQuestions, setActiveQuestions };
 })();

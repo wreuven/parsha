@@ -40,12 +40,49 @@ function normalizeName(s){
     .toLowerCase();
 }
 
+// Active questions selection
+const ACTIVE_KEY_LOCAL = `${NS}:activeQuestions:`; // + weekKey -> [ids]
+
+async function getActiveQuestionIds(){
+  const wk = window.PARSHA_CONFIG.weekKey;
+  if(isRemoteEnabled()){
+    try{
+      const ids = await window.PARSHA_REMOTE.getActiveQuestions?.(wk);
+      if(Array.isArray(ids) && ids.length===2) return ids;
+    }catch{}
+  }
+  // local fallback
+  return getJSON(`${ACTIVE_KEY_LOCAL}${wk}`, null) || defaultActiveIds();
+}
+
+function setActiveQuestionIds(ids){
+  const wk = window.PARSHA_CONFIG.weekKey;
+  if(isRemoteEnabled() && window.PARSHA_REMOTE.setActiveQuestions){
+    return window.PARSHA_REMOTE.setActiveQuestions(wk, ids).catch(()=>{
+      // also store locally as a fallback
+      setJSON(`${ACTIVE_KEY_LOCAL}${wk}`, ids);
+    });
+  }
+  setJSON(`${ACTIVE_KEY_LOCAL}${wk}`, ids);
+  return Promise.resolve();
+}
+
+function defaultActiveIds(){
+  const { questions } = window.PARSHA_CONFIG;
+  return [questions[0]?.id, questions[1]?.id].filter(Boolean);
+}
+
+function getQuestionById(id){
+  return window.PARSHA_CONFIG.questions.find(q=> q.id===id);
+}
+
 // Quiz rendering
-function renderQuestions(){
+async function renderQuestions(){
   const wrap = document.getElementById('questions');
   wrap.innerHTML = '';
-  const { questions } = window.PARSHA_CONFIG;
-  questions.forEach((q, qi)=>{
+  const activeIds = await getActiveQuestionIds();
+  const active = activeIds.map(getQuestionById).filter(Boolean);
+  active.forEach((q, qi)=>{
     const field = document.createElement('fieldset');
     field.className = 'field';
 
@@ -76,18 +113,19 @@ function renderQuestions(){
       field.appendChild(label);
     });
 
-    wrap.appendChild(field);
+  wrap.appendChild(field);
   });
 }
 
-function evaluateAnswers(form){
-  const { questions } = window.PARSHA_CONFIG;
+async function evaluateAnswers(form){
+  const activeIds = await getActiveQuestionIds();
+  const qs = activeIds.map(getQuestionById).filter(Boolean);
   let correct = 0;
-  questions.forEach(q=>{
+  qs.forEach(q=>{
     const val = form.querySelector(`input[name="${q.id}"]:checked`);
     if(val && Number(val.value) === q.correctIndex) correct++;
   });
-  return correct === questions.length;
+  return correct === qs.length && qs.length === 2;
 }
 
 // Cookie helpers
@@ -284,12 +322,12 @@ function setupForm(){
   // Prefill name from cookie if present
   const savedName = getCookie(COOKIE_USER);
   if(savedName) form.studentName.value = savedName;
-  form.addEventListener('submit', (ev)=>{
+  form.addEventListener('submit', async (ev)=>{
     ev.preventDefault();
     let name = form.studentName.value.trim();
     if(!name){ toast('נא להזין שם.'); return; }
 
-    if(!evaluateAnswers(form)){
+    if(!(await evaluateAnswers(form))){
       toast('לא מדויק… נסו שוב לאחר צפייה חוזרת בנקודות הרלוונטיות.');
       return;
     }
@@ -330,6 +368,10 @@ function setupForm(){
   loadYouTubeAPI();
   setupForm();
   renderLeaderboards();
+  // Setup mode toggle via ?setup
+  if(new URLSearchParams(location.search).has('setup')){
+    buildSetupPanel();
+  }
   showCurrentUser();
 })();
 
@@ -372,4 +414,69 @@ function updateTimeGuardOnce(){
 
 function safeTime(){
   try { return ytPlayer?.getCurrentTime() ?? 0; } catch { return 0; }
+}
+
+// Setup UI
+async function buildSetupPanel(){
+  const sec = document.getElementById('setupSection');
+  const div = document.getElementById('setupContent');
+  if(!sec || !div) return;
+  sec.classList.remove('hidden');
+  sec.setAttribute('aria-hidden','false');
+
+  const activeIds = await getActiveQuestionIds();
+  const qs = window.PARSHA_CONFIG.questions;
+  div.innerHTML = '';
+
+  const list = document.createElement('div');
+  list.style.display = 'grid';
+  list.style.gridTemplateColumns = '1fr';
+  list.style.gap = '.5rem';
+  qs.forEach(q => {
+    const id = `setup_${q.id}`;
+    const label = document.createElement('label');
+    label.style.display = 'flex';
+    label.style.gap = '.5rem';
+    label.style.alignItems = 'flex-start';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.id = id;
+    cb.value = q.id;
+    cb.checked = activeIds.includes(q.id);
+    const span = document.createElement('span');
+    span.textContent = q.text;
+    label.appendChild(cb);
+    label.appendChild(span);
+    list.appendChild(label);
+  });
+  div.appendChild(list);
+
+  const actions = document.createElement('div');
+  actions.style.display = 'flex';
+  actions.style.gap = '.5rem';
+  actions.style.marginTop = '1rem';
+  const saveBtn = document.createElement('button');
+  saveBtn.className = 'primary';
+  saveBtn.textContent = 'שמירת בחירה (2 שאלות)';
+  const cancelBtn = document.createElement('button');
+  cancelBtn.className = 'secondary';
+  cancelBtn.textContent = 'ביטול שינויים';
+  actions.appendChild(saveBtn);
+  actions.appendChild(cancelBtn);
+  div.appendChild(actions);
+
+  cancelBtn.addEventListener('click', async ()=>{
+    await renderQuestions();
+  });
+
+  saveBtn.addEventListener('click', async ()=>{
+    const selected = Array.from(div.querySelectorAll('input[type="checkbox"]:checked')).map(el=> el.value);
+    if(selected.length !== 2){
+      alert('יש לבחור בדיוק 2 שאלות פעילות.');
+      return;
+    }
+    await setActiveQuestionIds(selected);
+    await renderQuestions();
+    alert('נשמר!');
+  });
 }
