@@ -299,7 +299,7 @@ function setupForm(){
       // success
       addWinner(name);
       renderLeaderboards();
-      toast('כל הכבוד! שמך נוסף לרשימת הזוכים של השבוע.');
+  toast('כל הכבוד! שמך נוסף לרשימת הזוכות של השבוע.');
       // Keep name in field for convenience
       form.reset();
       form.studentName.value = getCookie(COOKIE_USER) || '';
