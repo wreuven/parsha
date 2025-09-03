@@ -169,11 +169,12 @@ function renderLeaderboards(){
   // render local first for instant UI
   const localAll = getJSON(LS_KEYS.winnersAll, []);
   const localAllRank = aggregateLeaders(localAll);
-  fillList('leadersAll', localAllRank.map(([n,c])=> `${n} — ${c}`));
+  // Show only names; OL numbering provides the rank number
+  fillList('leadersAll', localAllRank.map(([n])=> n));
 
   const localMonth = getMonthWinners(ymKey);
   const localMonthRank = aggregateLeaders(localMonth);
-  fillList('leadersMonth', localMonthRank.map(([n,c])=> `${n} — ${c}`));
+  fillList('leadersMonth', localMonthRank.map(([n])=> n));
 
   const localWeek = getWeekWinners();
   fillList('leadersWeek', localWeek);
@@ -181,12 +182,23 @@ function renderLeaderboards(){
   // then try remote and merge/replace
   if(window.PARSHA_REMOTE?.hasConfig){
     window.PARSHA_REMOTE.remoteFetchAll().then(({ all, week })=>{
-      const allRank = aggregateLeaders(all.map(({name,date_iso})=>({name,dateISO:date_iso})));
-      fillList('leadersAll', allRank.map(([n,c])=> `${n} — ${c}`));
-      const month = all.filter(x => (x.date_iso||'').startsWith(ymKey));
-      const monthRank = aggregateLeaders(month.map(({name,date_iso})=>({name,dateISO:date_iso})));
-      fillList('leadersMonth', monthRank.map(([n,c])=> `${n} — ${c}`));
-      fillList('leadersWeek', week);
+      // Merge remote+local for resilience
+      const mergedAll = [
+        ...localAll,
+        ...all.map(({name,date_iso})=>({ name, dateISO: date_iso }))
+      ];
+      const allRank = aggregateLeaders(mergedAll);
+      fillList('leadersAll', allRank.map(([n])=> n));
+
+      const mergedMonth = mergedAll.filter(x => x.dateISO?.startsWith(ymKey));
+      const monthRank = aggregateLeaders(mergedMonth);
+      fillList('leadersMonth', monthRank.map(([n])=> n));
+
+      // Weekly: prefer remote when it has data; otherwise keep/merge local
+      const weekList = Array.from(new Set([...(week||[]), ...localWeek]));
+      if(weekList.length){
+        fillList('leadersWeek', weekList);
+      }
     }).catch(()=>{});
   }
 }
