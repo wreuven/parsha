@@ -551,6 +551,19 @@ async function buildSetupPanel(){
         arr.push(q);
         setJSON(key, arr);
       }
+      // If only one question currently selected, auto-select the newly added custom to make two
+      try{
+        const active = await getActiveQuestionIds();
+        const bank = await getAllQuestions();
+        const customIds = bank.filter(b=> b.source==='custom').map(b=> b.id);
+        const newest = customIds[customIds.length-1];
+        let next = Array.from(new Set(active));
+        if(next.length < 2 && newest && !next.includes(newest)){
+          next.push(newest);
+          await setActiveQuestionIds(next.slice(0,2));
+        }
+      }catch{}
+      await buildSetupPanel();
       alert('השאלה נוספה.');
     });
     f.appendChild(saveOne);
@@ -580,7 +593,17 @@ async function buildSetupPanel(){
   });
 
   saveBtn.addEventListener('click', async ()=>{
-    const selected = Array.from(div.querySelectorAll('input[type="checkbox"]:checked')).map(el=> el.value);
+    let selected = Array.from(div.querySelectorAll('input[type="checkbox"]:checked')).map(el=> el.value);
+    if(selected.length !== 2){
+      if(selected.length === 1){
+        const bank = await getAllQuestions();
+        const customs = bank.filter(b=> b.source==='custom').map(b=> b.id);
+        const newest = customs[customs.length-1];
+        if(newest && !selected.includes(newest)){
+          selected = [selected[0], newest];
+        }
+      }
+    }
     if(selected.length !== 2){
       alert('יש לבחור בדיוק 2 שאלות פעילות.');
       return;
