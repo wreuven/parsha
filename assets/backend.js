@@ -31,7 +31,7 @@
     const table = `${prefix}_winners`;
     await client.from(table).insert({ name, date_iso: new Date().toISOString(), week_key: weekKey });
     const weekTable = `${prefix}_week_winners`;
-    // Insert if not exists (simple attempt; unique constraint recommended at DB level)
+    // Insert if not exists (unique constraint recommended at DB level)
     await client.from(weekTable).insert({ name, week_key: weekKey }).catch(()=>{});
   }
 
@@ -41,9 +41,9 @@
     const prefix = window.PARSHA_BACKEND.tablePrefix || 'parsha';
     const weekKey = window.PARSHA_CONFIG.weekKey;
 
-    const { data: all = [] } = await client.from(`${prefix}_winners`).select('*').order('created_at', { ascending: false });
+  const { data: all = [] } = await client.from(`${prefix}_winners`).select('*').order('created_at', { ascending: false });
     const { data: week = [] } = await client.from(`${prefix}_week_winners`).select('*').eq('week_key', weekKey);
-    return { all, week: [...new Set(week.map(x=>x.name))] };
+  return { all, week: [...new Set(week.map(x=>x.name))] };
   }
 
   window.PARSHA_REMOTE = { remoteAddWinner, remoteFetchAll, hasConfig };

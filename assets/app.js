@@ -134,8 +134,8 @@ function openNameConfirm(name, onConfirm){
 function addWinner(name){
   const weekKey = window.PARSHA_CONFIG.weekKey;
   if(isRemoteEnabled()){
-    // Remote only
-    window.PARSHA_REMOTE.remoteAddWinner(name, weekKey).catch(()=>{});
+  // Remote only: return the Promise so caller can await
+  return window.PARSHA_REMOTE.remoteAddWinner(name, weekKey).catch(()=>{});
   } else {
     // Local fallback (no remote configured)
     const all = getJSON(LS_KEYS.winnersAll, []);
@@ -146,8 +146,9 @@ function addWinner(name){
     const wk = getJSON(wkKey, []);
     const norm = normalizeName(name);
     const wkNorms = wk.map(n => normalizeName(n));
-    if(!wkNorms.includes(norm)) wk.push(name);
-    setJSON(wkKey, wk);
+  if(!wkNorms.includes(norm)) wk.push(name);
+  setJSON(wkKey, wk);
+  return Promise.resolve();
   }
 }
 
@@ -183,7 +184,10 @@ function renderLeaderboards(){
       const monthRank = aggregateLeaders(month.map(({name,date_iso})=>({ name, dateISO: date_iso })));
       fillList('leadersMonth', monthRank.map(([n])=> n));
 
-      fillList('leadersWeek', Array.from(new Set(week||[])));
+      // Compute weekly winners from the main winners table to avoid reliance on a second table
+      const wkKey = window.PARSHA_CONFIG.weekKey;
+      const weekNames = Array.from(new Set(all.filter(x => (x.week_key||'') === wkKey).map(x => x.name)));
+      fillList('leadersWeek', weekNames);
     }).catch(()=>{
       // On failure, keep placeholders
     });
@@ -297,8 +301,10 @@ function setupForm(){
         showCurrentUser();
       }
       // success
-      addWinner(name);
-      renderLeaderboards();
+      addWinner(name)
+        .finally(() => {
+          renderLeaderboards();
+        });
   toast('כל הכבוד! שמך נוסף לרשימת הזוכות של השבוע.');
       // Keep name in field for convenience
       form.reset();
