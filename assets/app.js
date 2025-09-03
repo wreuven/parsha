@@ -365,16 +365,19 @@ function setupForm(){
     console.error('Missing PARSHA_CONFIG');
     return;
   }
-  loadYouTubeAPI();
-  setupForm();
-  renderLeaderboards();
   // Setup mode toggle via ?setup or #setup
   const isSetup = new URLSearchParams(location.search).has('setup') || (location.hash||'').toLowerCase().includes('setup');
   if(isSetup){
     const badge = document.getElementById('setupBadge');
     if(badge){ badge.classList.remove('hidden'); }
     buildSetupPanel();
+    showCurrentUser();
+    return; // skip loading video/quiz/leaderboards in setup mode
   }
+
+  loadYouTubeAPI();
+  setupForm();
+  renderLeaderboards();
   showCurrentUser();
 })();
 
@@ -426,6 +429,10 @@ async function buildSetupPanel(){
   if(!sec || !div) return;
   sec.classList.remove('hidden');
   sec.setAttribute('aria-hidden','false');
+  // Hide other sections while in setup mode
+  document.querySelectorAll('main .card').forEach(el=>{
+    if(el !== sec) el.classList.add('hidden');
+  });
 
   const activeIds = await getActiveQuestionIds();
   const qs = window.PARSHA_CONFIG.questions;
@@ -437,20 +444,47 @@ async function buildSetupPanel(){
   list.style.gap = '.5rem';
   qs.forEach(q => {
     const id = `setup_${q.id}`;
-    const label = document.createElement('label');
-    label.style.display = 'flex';
-    label.style.gap = '.5rem';
-    label.style.alignItems = 'flex-start';
+    const wrap = document.createElement('div');
+    wrap.style.border = '1px solid rgba(255,255,255,.15)';
+    wrap.style.borderRadius = '10px';
+    wrap.style.padding = '.6rem .8rem';
+    wrap.style.background = 'rgba(255,255,255,.03)';
+
+    const head = document.createElement('label');
+    head.setAttribute('for', id);
+    head.style.display = 'flex';
+    head.style.gap = '.5rem';
+    head.style.alignItems = 'flex-start';
+
     const cb = document.createElement('input');
     cb.type = 'checkbox';
     cb.id = id;
     cb.value = q.id;
     cb.checked = activeIds.includes(q.id);
-    const span = document.createElement('span');
-    span.textContent = q.text;
-    label.appendChild(cb);
-    label.appendChild(span);
-    list.appendChild(label);
+
+    const title = document.createElement('strong');
+    title.textContent = q.text;
+
+    head.appendChild(cb);
+    head.appendChild(title);
+    wrap.appendChild(head);
+
+    const opts = document.createElement('ul');
+    opts.style.margin = '.5rem 0 0';
+    opts.style.paddingInlineStart = '1.2rem';
+    q.options.forEach((opt, oi)=>{
+      const li = document.createElement('li');
+      if(oi === q.correctIndex){
+        const s = document.createElement('span');
+        s.innerHTML = `<strong>${opt}</strong>  ✓`;
+        li.appendChild(s);
+      } else {
+        li.textContent = opt;
+      }
+      opts.appendChild(li);
+    });
+    wrap.appendChild(opts);
+    list.appendChild(wrap);
   });
   div.appendChild(list);
 
