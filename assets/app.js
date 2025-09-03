@@ -137,7 +137,9 @@ async function renderQuestions(){
 
 async function evaluateAnswers(form){
   const activeIds = await getActiveQuestionIds();
-  const qs = activeIds.map(getQuestionById).filter(Boolean);
+  const bank = await getAllQuestions();
+  const byId = new Map(bank.map(q=> [q.id, q]));
+  const qs = activeIds.map(id=> byId.get(id)).filter(Boolean);
   let correct = 0;
   qs.forEach(q=>{
     const val = form.querySelector(`input[name="${q.id}"]:checked`);
