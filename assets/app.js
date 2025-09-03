@@ -13,6 +13,10 @@ const LS_KEYS = {
   winnersWeekPrefix: `${NS}:winnersWeek:` // + weekKey -> array of names
 };
 
+function isRemoteEnabled(){
+  return !!window.PARSHA_REMOTE?.hasConfig;
+}
+
 // Utilities
 const today = new Date();
 const ymKey = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`; // e.g., 2025-08
@@ -129,22 +133,21 @@ function openNameConfirm(name, onConfirm){
 // Leaderboards
 function addWinner(name){
   const weekKey = window.PARSHA_CONFIG.weekKey;
-  // overall
-  const all = getJSON(LS_KEYS.winnersAll, []);
-  all.push({ name, dateISO: new Date().toISOString() });
-  setJSON(LS_KEYS.winnersAll, all);
-
-  // weekly
-  const wkKey = `${LS_KEYS.winnersWeekPrefix}${weekKey}`;
-  const wk = getJSON(wkKey, []);
-  const norm = normalizeName(name);
-  const wkNorms = wk.map(n => normalizeName(n));
-  if(!wkNorms.includes(norm)) wk.push(name);
-  setJSON(wkKey, wk);
-
-  // remote (if configured)
-  if(window.PARSHA_REMOTE?.hasConfig){
+  if(isRemoteEnabled()){
+    // Remote only
     window.PARSHA_REMOTE.remoteAddWinner(name, weekKey).catch(()=>{});
+  } else {
+    // Local fallback (no remote configured)
+    const all = getJSON(LS_KEYS.winnersAll, []);
+    all.push({ name, dateISO: new Date().toISOString() });
+    setJSON(LS_KEYS.winnersAll, all);
+
+    const wkKey = `${LS_KEYS.winnersWeekPrefix}${weekKey}`;
+    const wk = getJSON(wkKey, []);
+    const norm = normalizeName(name);
+    const wkNorms = wk.map(n => normalizeName(n));
+    if(!wkNorms.includes(norm)) wk.push(name);
+    setJSON(wkKey, wk);
   }
 }
 
@@ -166,10 +169,30 @@ function aggregateLeaders(entries){
 }
 
 function renderLeaderboards(){
-  // render local first for instant UI
+  if(isRemoteEnabled()){
+    // Remote-only rendering
+    fillList('leadersAll', []); // will show empty placeholder until fetch completes
+    fillList('leadersMonth', []);
+    fillList('leadersWeek', []);
+
+    window.PARSHA_REMOTE.remoteFetchAll().then(({ all, week })=>{
+      const allRank = aggregateLeaders(all.map(({name,date_iso})=>({ name, dateISO: date_iso })));
+      fillList('leadersAll', allRank.map(([n])=> n));
+
+      const month = all.filter(x => (x.date_iso||'').startsWith(ymKey));
+      const monthRank = aggregateLeaders(month.map(({name,date_iso})=>({ name, dateISO: date_iso })));
+      fillList('leadersMonth', monthRank.map(([n])=> n));
+
+      fillList('leadersWeek', Array.from(new Set(week||[])));
+    }).catch(()=>{
+      // On failure, keep placeholders
+    });
+    return;
+  }
+
+  // Local-only (no remote configured)
   const localAll = getJSON(LS_KEYS.winnersAll, []);
   const localAllRank = aggregateLeaders(localAll);
-  // Show only names; OL numbering provides the rank number
   fillList('leadersAll', localAllRank.map(([n])=> n));
 
   const localMonth = getMonthWinners(ymKey);
@@ -178,29 +201,6 @@ function renderLeaderboards(){
 
   const localWeek = getWeekWinners();
   fillList('leadersWeek', localWeek);
-
-  // then try remote and merge/replace
-  if(window.PARSHA_REMOTE?.hasConfig){
-    window.PARSHA_REMOTE.remoteFetchAll().then(({ all, week })=>{
-      // Merge remote+local for resilience
-      const mergedAll = [
-        ...localAll,
-        ...all.map(({name,date_iso})=>({ name, dateISO: date_iso }))
-      ];
-      const allRank = aggregateLeaders(mergedAll);
-      fillList('leadersAll', allRank.map(([n])=> n));
-
-      const mergedMonth = mergedAll.filter(x => x.dateISO?.startsWith(ymKey));
-      const monthRank = aggregateLeaders(mergedMonth);
-      fillList('leadersMonth', monthRank.map(([n])=> n));
-
-      // Weekly: prefer remote when it has data; otherwise keep/merge local
-      const weekList = Array.from(new Set([...(week||[]), ...localWeek]));
-      if(weekList.length){
-        fillList('leadersWeek', weekList);
-      }
-    }).catch(()=>{});
-  }
 }
 
 function fillList(id, items){
