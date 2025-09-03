@@ -368,8 +368,11 @@ function setupForm(){
   loadYouTubeAPI();
   setupForm();
   renderLeaderboards();
-  // Setup mode toggle via ?setup
-  if(new URLSearchParams(location.search).has('setup')){
+  // Setup mode toggle via ?setup or #setup
+  const isSetup = new URLSearchParams(location.search).has('setup') || (location.hash||'').toLowerCase().includes('setup');
+  if(isSetup){
+    const badge = document.getElementById('setupBadge');
+    if(badge){ badge.classList.remove('hidden'); }
     buildSetupPanel();
   }
   showCurrentUser();
